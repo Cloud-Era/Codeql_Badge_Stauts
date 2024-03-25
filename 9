@@ -31,10 +31,6 @@ def create_or_update_branch(branch_name, new_commit_sha):
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': f'Bearer {access_token}'
     }
-    data = {
-        "ref": f"refs/heads/{branch_name}",
-        "sha": new_commit_sha
-    }
     response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers)
     if response.status_code == 200:
         # Branch exists, update the existing branch
@@ -110,8 +106,8 @@ if __name__ == "__main__":
     latest_commit_sha = get_latest_commit_sha(default_branch)
     if latest_commit_sha:
         print(f"Creating or updating branch '{new_branch_name}'...")
-        if create_or_update_branch(new_branch_name, latest_commit_sha):
-            print(f"Updating README in branch '{new_branch_name}'...")
-            update_readme_with_codeql_badge(new_branch_name)
+        create_or_update_branch(new_branch_name, latest_commit_sha)
+        print(f"Updating README in branch '{new_branch_name}'...")
+        update_readme_with_codeql_badge(new_branch_name)
     else:
         print(f"Error retrieving latest commit SHA from branch '{default_branch}'.")
