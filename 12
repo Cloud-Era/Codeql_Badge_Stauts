@@ -64,12 +64,16 @@ def update_readme_with_codeql_badge(branch_name):
             response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
             if response.status_code == 200:
                 print(f"CODEQL badge added to README in branch '{branch_name}'.")
+                return True
             else:
                 print(f"Error updating README in branch '{branch_name}': {response.text}")
+                return False
         else:
             print(f"CODEQL badge already exists in README in branch '{branch_name}', skipping...")
+            return True
     else:
         print(f"Error retrieving README from branch '{branch_name}': {response.text}")
+        return False
 
 def create_pull_request(branch_name, base_branch):
     headers = {
@@ -107,9 +111,10 @@ if __name__ == "__main__":
 
     if check_codeql_workflow_enabled(repo_name):
         if create_branch(new_branch_name, base_branch):
-            update_readme_with_codeql_badge(new_branch_name)
-            create_pull_request(new_branch_name, base_branch)
+            if update_readme_with_codeql_badge(new_branch_name):
+                create_pull_request(new_branch_name, base_branch)
         else:
-            update_readme_with_codeql_badge(new_branch_name)  # Even if the branch exists, check and update README.md if needed
+            if not update_readme_with_codeql_badge(new_branch_name):
+                print("Failed to update README. Pull request will not be created.")
     else:
         print("CodeQL workflow is not enabled in the repository.")
