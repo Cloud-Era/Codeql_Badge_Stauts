@@ -10,6 +10,9 @@ org_name = 'your_organization_name'
 # GitHub repository name
 repo_name = 'your_repository_name'
 
+# CODEQL badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{org}/{repo}/actions/workflows/codeql.yml)'
+
 def check_codeql_workflow_enabled(repo):
     workflows = repo.get_workflows()
     for workflow in workflows:
@@ -36,7 +39,17 @@ def open_pull_request():
     main_branch = repo.get_branch("main")
     new_branch = repo.create_git_ref(f"refs/heads/add-codeql-workflow-badge", main_branch.commit.sha)
 
-    print(f"New branch created successfully. Opening pull request...")
+    print(f"New branch created successfully. Updating README with CODEQL badge...")
+    readme = repo.get_readme()
+    readme_content = readme.decoded_content.decode("utf-8")
+    if 'CODEQL' not in readme_content:
+        new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+        repo.update_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, sha=readme.sha)
+        print(f"CODEQL badge added to README in {repo.full_name}")
+    else:
+        print(f"CODEQL badge already exists in README in {repo.full_name}, skipping...")
+
+    print(f"Opening pull request...")
     pr_title = "Add CODEQL workflow status badge"
     pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
     repo.create_pull(title=pr_title, body=pr_body, head="add-codeql-workflow-badge", base="main")
