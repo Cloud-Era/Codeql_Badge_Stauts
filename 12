@@ -1,0 +1,115 @@
+import os
+import requests
+import base64
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub organization name
+org_name = 'your_organization_name'
+
+# GitHub repository name
+repo_name = 'your_repository_name'
+
+# CODEQL badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{org}/{repo}/actions/workflows/codeql.yml)'
+
+def create_branch(branch_name, base_branch):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Check if branch already exists
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers)
+    if response.status_code == 200:
+        print(f"Branch '{branch_name}' already exists.")
+        return False  # Indicate branch already exists
+
+    # If branch doesn't exist, proceed with creation
+    data = {
+        'ref': f'refs/heads/{branch_name}',
+        'sha': base_branch
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+    if response.status_code == 201:
+        print(f"Branch '{branch_name}' created successfully.")
+        return True
+    else:
+        print(f"Error creating branch '{branch_name}': {response.text}")
+        return False
+
+def update_readme_with_codeql_badge(branch_name):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # CODEQL badge section
+    codeql_badge_section = f"\n\n**CodeQL Badge Status**\n\n{codeql_badge_markdown}"
+
+    # Update README in the branch
+    readme_path = "README.md"
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}?ref={branch_name}', headers=headers)
+    if response.status_code == 200:
+        readme_content = base64.b64decode(response.json()['content']).decode('utf-8')
+        if 'CODEQL' not in readme_content:
+            new_readme_content = readme_content + codeql_badge_section
+            data = {
+                "message": "Add CODEQL workflow status badge",
+                "content": base64.b64encode(new_readme_content.encode('utf-8')).decode('utf-8'),
+                "sha": response.json()['sha'],
+                "branch": branch_name
+            }
+            response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
+            if response.status_code == 200:
+                print(f"CODEQL badge added to README in branch '{branch_name}'.")
+            else:
+                print(f"Error updating README in branch '{branch_name}': {response.text}")
+        else:
+            print(f"CODEQL badge already exists in README in branch '{branch_name}', skipping...")
+    else:
+        print(f"Error retrieving README from branch '{branch_name}': {response.text}")
+
+def create_pull_request(branch_name, base_branch):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    data = {
+        "title": f"Add CODEQL workflow status badge",
+        "head": branch_name,
+        "base": base_branch
+    }
+
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/pulls', headers=headers, json=data)
+    if response.status_code == 201:
+        print(f"Pull request created successfully.")
+    else:
+        print(f"Error creating pull request: {response.text}")
+
+def check_codeql_workflow_enabled(repo_name):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/actions/workflows', headers=headers)
+    workflows = response.json().get('workflows', [])
+    for workflow in workflows:
+        if workflow.get('name') == 'CodeQL':
+            return True
+    return False
+
+if __name__ == "__main__":
+    new_branch_name = "add-codeql-workflow-badge"
+    base_branch = "main"  # Change this to the appropriate base branch
+
+    if check_codeql_workflow_enabled(repo_name):
+        if create_branch(new_branch_name, base_branch):
+            update_readme_with_codeql_badge(new_branch_name)
+            create_pull_request(new_branch_name, base_branch)
+        else:
+            update_readme_with_codeql_badge(new_branch_name)  # Even if the branch exists, check and update README.md if needed
+    else:
+        print("CodeQL workflow is not enabled in the repository.")
