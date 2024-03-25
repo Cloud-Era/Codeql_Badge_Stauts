@@ -38,6 +38,37 @@ def get_latest_commit_sha(branch_name):
         print(f"Error retrieving latest commit SHA: {response.text}")
         return None
 
+def create_or_update_branch(branch_name, new_commit_sha):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/ref/heads/{branch_name}', headers=headers)
+    if response.status_code == 200:
+        # Branch exists, update the existing branch
+        data = {
+            "sha": new_commit_sha,
+            "force": True
+        }
+        response = requests.patch(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers, json=data)
+        if response.status_code == 200:
+            print(f"Branch '{branch_name}' updated successfully.")
+        else:
+            print(f"Error updating branch '{branch_name}': {response.text}")
+    elif response.status_code == 404:
+        # Branch does not exist, create a new branch
+        data = {
+            "ref": f"refs/heads/{branch_name}",
+            "sha": new_commit_sha
+        }
+        response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+        if response.status_code == 201:
+            print(f"Branch '{branch_name}' created successfully.")
+        else:
+            print(f"Error creating branch '{branch_name}': {response.text}")
+    else:
+        print(f"Error checking branch '{branch_name}': {response.text}")
+
 def update_readme_with_codeql_badge(branch_name):
     headers = {
         'Accept': 'application/vnd.github.v3+json',
@@ -79,9 +110,11 @@ if __name__ == "__main__":
         exit()
 
     new_branch_name = "add-codeql-workflow-badge"
-    latest_commit_sha = get_latest_commit_sha(new_branch_name)
+    latest_commit_sha = get_latest_commit_sha(default_branch)
     if latest_commit_sha:
-        print(f"Branch '{new_branch_name}' already exists. Updating README...")
+        print(f"Creating or updating branch '{new_branch_name}'...")
+        create_or_update_branch(new_branch_name, latest_commit_sha)
+        print(f"Updating README in branch '{new_branch_name}'...")
         update_readme_with_codeql_badge(new_branch_name)
     else:
-        print(f"Branch '{new_branch_name}' does not exist.")
+        print(f"Error retrieving latest commit SHA from branch '{default_branch}'.")
