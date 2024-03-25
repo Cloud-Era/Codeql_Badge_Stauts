@@ -27,8 +27,8 @@ def add_codeql_badge_to_readme(repo):
         if 'CODEQL' not in readme_content:
             new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
             default_branch = repo.default_branch
-            default_branch_ref = repo.get_git_ref(f"heads/{default_branch}")
-            default_branch_sha = default_branch_ref.object.sha
+            default_branch_ref = repo.get_branch(default_branch)
+            default_branch_sha = default_branch_ref.commit.sha
 
             # Attempt to delete the branch if it already exists
             try:
