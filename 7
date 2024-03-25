@@ -99,6 +99,10 @@ def open_pull_request():
         print(f"CODEQL badge already exists in README, skipping...")
 
     # Open pull request
+    default_branch = get_default_branch()
+    if not default_branch:
+        return
+
     pr_title = "Add CODEQL workflow status badge"
     pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
     data = {
