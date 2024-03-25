@@ -29,10 +29,9 @@ def add_codeql_badge_to_readme(repo):
             default_branch = repo.default_branch
             default_branch_ref = repo.get_git_ref(f"heads/{default_branch}")
 
-            # Delete the branch if it already exists
+            # Attempt to delete the branch if it already exists
             try:
-                existing_branch = repo.get_branch("add-codeql-badge")
-                existing_branch.edit(ref=default_branch_ref.object.sha)
+                repo.get_git_ref(f"heads/add-codeql-badge").delete()
             except Exception as e:
                 pass
 
