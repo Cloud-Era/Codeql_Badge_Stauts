@@ -63,7 +63,7 @@ if __name__ == "__main__":
     else:
         print(f"Branch '{new_branch_name}' does not exist.")
         print(f"Creating branch '{new_branch_name}'...")
-        
+
         # Create new branch
         headers = {
             'Accept': 'application/vnd.github.v3+json',
@@ -73,6 +73,9 @@ if __name__ == "__main__":
         response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json={"ref": f"refs/heads/{new_branch_name}", "sha": default_branch})
         if response.status_code == 201:
             print(f"Branch '{new_branch_name}' created successfully.")
+            update_readme_with_codeql_badge(new_branch_name)
+        elif response.status_code == 422:
+            print(f"Branch '{new_branch_name}' already exists.")
             update_readme_with_codeql_badge(new_branch_name)
         else:
             print(f"Error creating branch '{new_branch_name}': {response.text}")
