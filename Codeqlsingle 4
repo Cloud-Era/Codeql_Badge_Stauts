@@ -16,10 +16,15 @@ codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-
 def check_codeql_job_runs(repo):
     workflow_runs = repo.get_workflow_runs()
     for run in workflow_runs:
-        jobs = run.get_jobs()
-        for job in jobs:
-            if job.name == 'CodeQL':
-                return True
+        if run.name == 'CodeQL':
+            jobs = repo._requester.requestJsonAndCheck(
+                "GET", 
+                run.jobs_url,
+                headers={"Accept": "application/vnd.github.v3+json"}
+            )
+            for job in jobs['jobs']:
+                if job['name'] == 'CodeQL':
+                    return True
     return False
 
 def add_codeql_badge_to_readme(repo):
