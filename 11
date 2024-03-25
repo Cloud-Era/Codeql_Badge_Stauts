@@ -1,0 +1,40 @@
+import os
+import requests
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub organization name
+org_name = 'your_organization_name'
+
+# GitHub repository name
+repo_name = 'your_repository_name'
+
+def create_branch(branch_name, base_branch):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Check if branch already exists
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers)
+    if response.status_code == 200:
+        print(f"Branch '{branch_name}' already exists. Skipping creation.")
+        return False  # Indicate branch already exists
+
+    # If branch doesn't exist, proceed with creation
+    data = {
+        'ref': f'refs/heads/{branch_name}',
+        'sha': base_branch
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+    return response.status_code == 201
+
+if __name__ == "__main__":
+    new_branch_name = "add-codeql-workflow-badge"
+    base_branch = "main"  # Change this to the appropriate base branch
+
+    if create_branch(new_branch_name, base_branch):
+        print(f"Branch '{new_branch_name}' created successfully.")
+    else:
+        print(f"Error creating branch '{new_branch_name}'.")
