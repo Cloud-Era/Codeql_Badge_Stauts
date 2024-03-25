@@ -28,7 +28,7 @@ def add_codeql_badge_to_readme(repo):
             new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
             
             # Create a new branch
-            new_branch_name = 'add-codeql-badge'
+            new_branch_name = 'add-codeql-badge-branch'
             repo.create_git_ref(ref=f"refs/heads/{new_branch_name}", sha=repo.default_branch)
 
             # Create a file in the new branch
