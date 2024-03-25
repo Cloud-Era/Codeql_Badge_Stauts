@@ -13,6 +13,13 @@ repo_name = 'repository_name'
 # CODEQL workflow badge markdown
 codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{}/{}/actions/workflows/codeql.yml)'.format(repo_owner, repo_name)
 
+def check_codeql_workflow_runs(repo):
+    workflow_runs = repo.get_workflow_runs()
+    for run in workflow_runs:
+        if run.workflow_id == 'CodeQL':
+            return True
+    return False
+
 def add_codeql_badge_to_readme(repo):
     try:
         readme = repo.get_readme()
@@ -20,8 +27,8 @@ def add_codeql_badge_to_readme(repo):
         if 'CODEQL' not in readme_content:
             new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
             default_branch = repo.default_branch
-            default_branch_ref = repo.get_branch(default_branch)
-            new_branch_ref = repo.create_git_ref(ref=f"refs/heads/add-codeql-badge", sha=default_branch_ref.commit.sha)
+            default_branch_ref = repo.get_git_ref(f"heads/{default_branch}")
+            new_branch_ref = repo.create_git_ref(ref=f"refs/heads/add-codeql-badge", sha=default_branch_ref.object.sha)
             repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch='add-codeql-badge')
             pr_title = 'Add CODEQL workflow status badge'
             pr_body = 'This pull request adds a CODEQL workflow status badge to the repository.'
@@ -39,5 +46,8 @@ if __name__ == "__main__":
     # Fetch the specified repository
     repo = g.get_repo(f"{repo_owner}/{repo_name}")
 
-    # Check if a CODEQL badge exists and open pull request if not
-    add_codeql_badge_to_readme(repo)
+    # Check if CODEQL workflow runs exist and add CODEQL badge if not
+    if check_codeql_workflow_runs(repo):
+        add_codeql_badge_to_readme(repo)
+    else:
+        print(f"No CODEQL workflow runs found in {repo.full_name}, skipping...")
