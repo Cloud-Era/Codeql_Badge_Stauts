@@ -28,8 +28,21 @@ def add_codeql_badge_to_readme(repo):
             new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
             default_branch = repo.default_branch
             default_branch_ref = repo.get_git_ref(f"heads/{default_branch}")
+
+            # Delete the branch if it already exists
+            try:
+                existing_branch = repo.get_branch("add-codeql-badge")
+                existing_branch.edit(ref=default_branch_ref.object.sha)
+            except Exception as e:
+                pass
+
+            # Create a new branch
             new_branch_ref = repo.create_git_ref(ref=f"refs/heads/add-codeql-badge", sha=default_branch_ref.object.sha)
+            
+            # Create a file in the new branch
             repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch='add-codeql-badge')
+            
+            # Open a pull request
             pr_title = 'Add CODEQL workflow status badge'
             pr_body = 'This pull request adds a CODEQL workflow status badge to the repository.'
             repo.create_pull(title=pr_title, body=pr_body, head='add-codeql-badge', base=default_branch)
