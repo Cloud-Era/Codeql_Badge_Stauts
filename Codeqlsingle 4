@@ -38,10 +38,10 @@ def open_pull_request():
     print(f"No existing pull request found. Creating new branch and opening pull request...")
 
     # Create new branch
-    main_branch = repo.get_branch("main")
+    default_branch = repo.default_branch
     new_branch_name = "add-codeql-workflow-badge"
     try:
-        new_branch = repo.create_git_ref(f"refs/heads/{new_branch_name}", main_branch.commit.sha)
+        new_branch = repo.create_git_ref(f"refs/heads/{new_branch_name}", default_branch.commit.sha)
         print(f"New branch '{new_branch_name}' created successfully.")
     except Exception as e:
         print(f"Error creating new branch: {e}")
@@ -65,7 +65,7 @@ def open_pull_request():
     try:
         pr_title = "Add CODEQL workflow status badge"
         pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
-        repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
+        repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base=default_branch.name)
         print(f"Pull request opened successfully in {repo.full_name}")
     except Exception as e:
         print(f"Error opening pull request: {e}")
