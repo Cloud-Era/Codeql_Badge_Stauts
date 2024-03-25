@@ -1,0 +1,78 @@
+import os
+import requests
+import base64
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub organization name
+org_name = 'your_organization_name'
+
+# GitHub repository name
+repo_name = 'your_repository_name'
+
+# CODEQL badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{org}/{repo}/actions/workflows/codeql.yml)'
+
+def branch_exists(branch_name):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers)
+    return response.status_code == 200
+
+def update_readme_with_codeql_badge(branch_name):
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Update README in the branch
+    readme_path = "README.md"
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}?ref={branch_name}', headers=headers)
+    if response.status_code != 200:
+        print(f"Error retrieving README from branch '{branch_name}': {response.text}")
+        return
+
+    readme_content = base64.b64decode(response.json()['content']).decode('utf-8')
+    if 'CODEQL' not in readme_content:
+        codeql_badge_section = f"\n\n**CodeQL Badge Status**\n\n{codeql_badge_markdown}"
+
+        new_readme_content = readme_content + codeql_badge_section
+
+        data = {
+            "message": "Add CODEQL workflow status badge",
+            "content": base64.b64encode(new_readme_content.encode('utf-8')).decode('utf-8'),
+            "sha": response.json()['sha'],
+            "branch": branch_name
+        }
+        response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
+        if response.status_code != 200:
+            print(f"Error updating README in branch '{branch_name}': {response.text}")
+            return
+        print(f"CODEQL badge added to README in branch '{branch_name}'.")
+    else:
+        print(f"CODEQL badge already exists in README in branch '{branch_name}', skipping...")
+
+if __name__ == "__main__":
+    new_branch_name = "add-codeql-workflow-badge"
+    if branch_exists(new_branch_name):
+        print(f"Branch '{new_branch_name}' already exists.")
+        update_readme_with_codeql_badge(new_branch_name)
+    else:
+        print(f"Branch '{new_branch_name}' does not exist.")
+        print(f"Creating branch '{new_branch_name}'...")
+        
+        # Create new branch
+        headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': f'Bearer {access_token}'
+        }
+        default_branch = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}', headers=headers).json()['default_branch']
+        response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json={"ref": f"refs/heads/{new_branch_name}", "sha": default_branch})
+        if response.status_code == 201:
+            print(f"Branch '{new_branch_name}' created successfully.")
+            update_readme_with_codeql_badge(new_branch_name)
+        else:
+            print(f"Error creating branch '{new_branch_name}': {response.text}")
