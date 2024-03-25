@@ -53,7 +53,9 @@ def update_readme_with_codeql_badge(branch_name):
 
     readme_content = base64.b64decode(response.json()['content']).decode('utf-8')
     if 'CODEQL' not in readme_content:
-        new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+        codeql_badge_section = f"\n\n**CodeQL Badge Status**\n\n{codeql_badge_markdown}"
+
+        new_readme_content = readme_content + codeql_badge_section
 
         data = {
             "message": "Add CODEQL workflow status badge",
