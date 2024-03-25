@@ -13,18 +13,11 @@ repo_name = 'repository_name'
 # CODEQL workflow badge markdown
 codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{}/{}/actions/workflows/codeql.yml)'.format(repo_owner, repo_name)
 
-def check_codeql_job_runs(repo):
-    workflow_runs = repo.get_workflow_runs()
-    for run in workflow_runs:
-        if run.name == 'CodeQL':
-            jobs = repo._requester.requestJsonAndCheck(
-                "GET", 
-                run.jobs_url,
-                headers={"Accept": "application/vnd.github.v3+json"}
-            )
-            for job in jobs['jobs']:
-                if job['name'] == 'CodeQL':
-                    return True
+def check_codeql_workflow_enabled(repo):
+    workflows = repo.get_workflows()
+    for workflow in workflows:
+        if workflow.name == 'CodeQL':
+            return True
     return False
 
 def add_codeql_badge_to_readme(repo):
@@ -53,8 +46,8 @@ if __name__ == "__main__":
     # Fetch the specified repository
     repo = g.get_repo(f"{repo_owner}/{repo_name}")
 
-    # Check if CODEQL job runs exist and add CODEQL badge if not
-    if check_codeql_job_runs(repo):
+    # Check if CODEQL workflow is enabled and add CODEQL badge if not
+    if check_codeql_workflow_enabled(repo):
         add_codeql_badge_to_readme(repo)
     else:
-        print(f"No CODEQL job runs found in {repo.full_name}, skipping...")
+        print(f"CODEQL workflow not enabled in {repo.full_name}, skipping...")
