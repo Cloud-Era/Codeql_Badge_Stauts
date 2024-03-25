@@ -1,0 +1,41 @@
+import os
+from github import Github
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub repository owner
+repo_owner = 'repository_owner_username_or_organization_name'
+
+# GitHub repository name
+repo_name = 'repository_name'
+
+# CODEQL workflow badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{}/{}/actions/workflows/codeql.yml)'.format(repo_owner, repo_name)
+
+def add_codeql_badge_to_readme(repo):
+    try:
+        readme = repo.get_readme()
+        readme_content = readme.decoded_content.decode("utf-8")
+        if 'CODEQL' not in readme_content:
+            new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+            repo.create_git_ref(ref='refs/heads/add-codeql-badge', sha=repo.default_branch)
+            repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch='add-codeql-badge')
+            pr_title = 'Add CODEQL workflow status badge'
+            pr_body = 'This pull request adds a CODEQL workflow status badge to the repository.'
+            repo.create_pull(title=pr_title, body=pr_body, head='add-codeql-badge', base=repo.default_branch)
+            print(f"CODEQL badge added to README and pull request opened in {repo.full_name}")
+        else:
+            print(f"CODEQL badge already exists in README in {repo.full_name}, skipping...")
+    except Exception as e:
+        print(f"Error processing repository {repo.full_name}: {e}")
+
+if __name__ == "__main__":
+    # Create a GitHub instance
+    g = Github(access_token)
+
+    # Fetch the specified repository
+    repo = g.get_repo(f"{repo_owner}/{repo_name}")
+
+    # Check if a CODEQL badge exists and open pull request if not
+    add_codeql_badge_to_readme(repo)
