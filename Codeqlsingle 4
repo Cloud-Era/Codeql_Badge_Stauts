@@ -31,8 +31,14 @@ def add_codeql_badge_to_readme(repo):
             new_branch_name = 'add-codeql-badge-branch'
             repo.create_git_ref(ref=f"refs/heads/{new_branch_name}", sha=repo.default_branch)
 
-            # Create a file in the new branch
-            repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch=new_branch_name)
+            # Get the reference of the new branch
+            branch_ref = repo.get_git_ref(f"heads/{new_branch_name}")
+
+            # Create a commit in the new branch
+            repo.create_git_commit(message='Add CODEQL workflow status badge', tree=repo.get_branch(repo.default_branch).commit.commit.tree.sha, parents=[branch_ref.object.sha], branch=new_branch_name)
+
+            # Update the file in the new branch
+            repo.update_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, sha=readme.sha, branch=new_branch_name)
             
             # Open a pull request
             pr_title = 'Add CODEQL workflow status badge'
