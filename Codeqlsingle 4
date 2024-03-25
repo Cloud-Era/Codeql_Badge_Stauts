@@ -1,0 +1,55 @@
+import os
+from github import Github
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub repository owner
+repo_owner = 'repository_owner_username_or_organization_name'
+
+# GitHub repository name
+repo_name = 'repository_name'
+
+# CODEQL workflow badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{}/{}/actions/workflows/codeql.yml)'.format(repo_owner, repo_name)
+
+def check_codeql_job_runs(repo):
+    workflow_runs = repo.get_workflow_runs()
+    for run in workflow_runs:
+        jobs = run.get_jobs()
+        for job in jobs:
+            if job.name == 'CodeQL':
+                return True
+    return False
+
+def add_codeql_badge_to_readme(repo):
+    try:
+        readme = repo.get_readme()
+        readme_content = readme.decoded_content.decode("utf-8")
+        if 'CODEQL' not in readme_content:
+            new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+            default_branch = repo.default_branch
+            default_branch_ref = repo.get_git_ref(f"heads/{default_branch}")
+            new_branch_ref = repo.create_git_ref(ref=f"refs/heads/add-codeql-badge", sha=default_branch_ref.object.sha)
+            repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch='add-codeql-badge')
+            pr_title = 'Add CODEQL workflow status badge'
+            pr_body = 'This pull request adds a CODEQL workflow status badge to the repository.'
+            repo.create_pull(title=pr_title, body=pr_body, head='add-codeql-badge', base=default_branch)
+            print(f"CODEQL badge added to README and pull request opened in {repo.full_name}")
+        else:
+            print(f"CODEQL badge already exists in README in {repo.full_name}, skipping...")
+    except Exception as e:
+        print(f"Error processing repository {repo.full_name}: {e}")
+
+if __name__ == "__main__":
+    # Create a GitHub instance
+    g = Github(access_token)
+
+    # Fetch the specified repository
+    repo = g.get_repo(f"{repo_owner}/{repo_name}")
+
+    # Check if CODEQL job runs exist and add CODEQL badge if not
+    if check_codeql_job_runs(repo):
+        add_codeql_badge_to_readme(repo)
+    else:
+        print(f"No CODEQL job runs found in {repo.full_name}, skipping...")
