@@ -1,5 +1,6 @@
 import os
-from github import Github
+import requests
+import base64
 
 # GitHub personal access token
 access_token = os.getenv('GITHUB_TOKEN')
@@ -20,58 +21,82 @@ def check_codeql_workflow_enabled(repo):
             return True
     return False
 
+def get_latest_commit_sha():
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/branches/main', headers=headers)
+    if response.status_code == 200:
+        return response.json()['commit']['sha']
+    else:
+        print(f"Error retrieving latest commit SHA: {response.text}")
+        return None
+
 def open_pull_request():
-    g = Github(access_token)
-    repo = g.get_repo(f"{org_name}/{repo_name}")
-
-    print(f"Checking if CODEQL workflow is enabled in {repo.full_name}...")
-    if not check_codeql_workflow_enabled(repo):
-        print(f"CODEQL workflow not enabled in {repo.full_name}, skipping...")
-        return
-
-    print(f"CODEQL workflow enabled in {repo.full_name}. Checking if pull request already exists...")
-    existing_prs = repo.get_pulls(state='open', head=f'{org_name}:add-codeql-workflow-badge')
-    if existing_prs.totalCount > 0:
-        print(f"Pull request already exists in {repo.full_name}, skipping...")
-        return
-
-    print(f"No existing pull request found. Creating new branch and opening pull request...")
-
-    # Get the default branch and its latest commit
-    default_branch = repo.get_branch(repo.default_branch)
-    latest_commit_sha = default_branch.commit.sha
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
 
     # Create new branch
     new_branch_name = "add-codeql-workflow-badge"
-    try:
-        new_branch = repo.create_git_ref(f"refs/heads/{new_branch_name}", latest_commit_sha)
-        print(f"New branch '{new_branch_name}' created successfully.")
-    except Exception as e:
-        print(f"Error creating new branch: {e}")
+    latest_commit_sha = get_latest_commit_sha()
+    if not latest_commit_sha:
         return
+
+    data = {
+        "ref": f"refs/heads/{new_branch_name}",
+        "sha": latest_commit_sha
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+    if response.status_code != 201:
+        print(f"Error creating new branch: {response.text}")
+        return
+
+    print(f"New branch '{new_branch_name}' created successfully.")
 
     # Update README in the new branch
-    try:
-        readme = repo.get_readme()
-        readme_content = readme.decoded_content.decode("utf-8")
-        if 'CODEQL' not in readme_content:
-            new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
-            repo.create_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, branch=new_branch_name)
-            print(f"CODEQL badge added to README in new branch '{new_branch_name}' of {repo.full_name}")
-        else:
-            print(f"CODEQL badge already exists in README in {repo.full_name}, skipping...")
-    except Exception as e:
-        print(f"Error updating README: {e}")
+    readme_path = "README.md"
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers)
+    if response.status_code != 200:
+        print(f"Error retrieving README: {response.text}")
         return
 
+    readme_content = base64.b64decode(response.json()['content']).decode('utf-8')
+    if 'CODEQL' not in readme_content:
+        new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+
+        data = {
+            "message": "Add CODEQL workflow status badge",
+            "content": base64.b64encode(new_readme_content.encode('utf-8')).decode('utf-8'),
+            "sha": response.json()['sha'],
+            "branch": new_branch_name
+        }
+        response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
+        if response.status_code != 200:
+            print(f"Error updating README: {response.text}")
+            return
+        print(f"CODEQL badge added to README in new branch '{new_branch_name}'.")
+
+    else:
+        print(f"CODEQL badge already exists in README, skipping...")
+
     # Open pull request
-    try:
-        pr_title = "Add CODEQL workflow status badge"
-        pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
-        repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base=repo.default_branch)
-        print(f"Pull request opened successfully in {repo.full_name}")
-    except Exception as e:
-        print(f"Error opening pull request: {e}")
+    pr_title = "Add CODEQL workflow status badge"
+    pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
+    data = {
+        "title": pr_title,
+        "body": pr_body,
+        "head": new_branch_name,
+        "base": "main"  # Replace 'main' with the default branch name if different
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/pulls', headers=headers, json=data)
+    if response.status_code != 201:
+        print(f"Error opening pull request: {response.text}")
+        return
+
+    print(f"Pull request opened successfully in {org_name}/{repo_name}.")
 
 if __name__ == "__main__":
     open_pull_request()
