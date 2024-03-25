@@ -26,48 +26,20 @@ def get_default_branch():
         print(f"Error retrieving default branch: {response.text}")
         return None
 
-def get_latest_commit_sha(branch_name):
-    headers = {
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/branches/{branch_name}', headers=headers)
-    if response.status_code == 200:
-        return response.json()['commit']['sha']
-    else:
-        print(f"Error retrieving latest commit SHA: {response.text}")
-        return None
-
 def create_or_update_branch(branch_name, new_commit_sha):
     headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': f'Bearer {access_token}'
     }
-    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/ref/heads/{branch_name}', headers=headers)
-    if response.status_code == 200:
-        # Branch exists, update the existing branch
-        data = {
-            "sha": new_commit_sha,
-            "force": True
-        }
-        response = requests.patch(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers, json=data)
-        if response.status_code == 200:
-            print(f"Branch '{branch_name}' updated successfully.")
-        else:
-            print(f"Error updating branch '{branch_name}': {response.text}")
-    elif response.status_code == 404:
-        # Branch does not exist, create a new branch
-        data = {
-            "ref": f"refs/heads/{branch_name}",
-            "sha": new_commit_sha
-        }
-        response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
-        if response.status_code == 201:
-            print(f"Branch '{branch_name}' created successfully.")
-        else:
-            print(f"Error creating branch '{branch_name}': {response.text}")
+    data = {
+        "ref": f"refs/heads/{branch_name}",
+        "sha": new_commit_sha
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+    if response.status_code == 201:
+        print(f"Branch '{branch_name}' created or updated successfully.")
     else:
-        print(f"Error checking branch '{branch_name}': {response.text}")
+        print(f"Error creating or updating branch '{branch_name}': {response.text}")
 
 def update_readme_with_codeql_badge(branch_name):
     headers = {
