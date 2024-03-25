@@ -17,7 +17,7 @@ def add_codeql_badge_to_readme(repo):
     try:
         readme = repo.get_readme()
         readme_content = readme.decoded_content.decode("utf-8")
-        if 'codeql.yml' in [wf.name for wf in repo.get_workflows()]:
+        if any(wf.path.startswith('.github/workflows') and wf.name.endswith('.yml') for wf in repo.get_workflows()):
             if 'CODEQL' not in readme_content:
                 new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
                 repo.update_file(path=readme.path, message='Add CODEQL workflow status badge', content=new_readme_content, sha=readme.sha)
