@@ -1,0 +1,118 @@
+import os
+import requests
+import base64
+
+# GitHub personal access token
+access_token = os.getenv('GITHUB_TOKEN')
+
+# GitHub organization name
+org_name = 'your_organization_name'
+
+# GitHub repository name
+repo_name = 'your_repository_name'
+
+# CODEQL badge markdown
+codeql_badge_markdown = '[![CODEQL](https://img.shields.io/badge/CODEQL-passing-brightgreen)](https://github.com/{org}/{repo}/actions/workflows/codeql.yml)'
+
+def check_codeql_workflow_enabled(repo):
+    workflows = repo.get_workflows()
+    for workflow in workflows:
+        if workflow.name == 'CodeQL':
+            return True
+    return False
+
+def get_default_branch():
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}', headers=headers)
+    if response.status_code == 200:
+        return response.json()['default_branch']
+    else:
+        print(f"Error retrieving default branch: {response.text}")
+        return None
+
+def get_latest_commit_sha():
+    default_branch = get_default_branch()
+    if not default_branch:
+        return None
+
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/branches/{default_branch}', headers=headers)
+    if response.status_code == 200:
+        return response.json()['commit']['sha']
+    else:
+        print(f"Error retrieving latest commit SHA: {response.text}")
+        return None
+
+def open_pull_request():
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Create new branch
+    new_branch_name = "add-codeql-workflow-badge"
+    latest_commit_sha = get_latest_commit_sha()
+    if not latest_commit_sha:
+        return
+
+    data = {
+        "ref": f"refs/heads/{new_branch_name}",
+        "sha": latest_commit_sha
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json=data)
+    if response.status_code != 201:
+        print(f"Error creating new branch: {response.text}")
+        return
+
+    print(f"New branch '{new_branch_name}' created successfully.")
+
+    # Update README in the new branch
+    readme_path = "README.md"
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers)
+    if response.status_code != 200:
+        print(f"Error retrieving README: {response.text}")
+        return
+
+    readme_content = base64.b64decode(response.json()['content']).decode('utf-8')
+    if 'CODEQL' not in readme_content:
+        new_readme_content = readme_content + '\n\n' + codeql_badge_markdown
+
+        data = {
+            "message": "Add CODEQL workflow status badge",
+            "content": base64.b64encode(new_readme_content.encode('utf-8')).decode('utf-8'),
+            "sha": response.json()['sha'],
+            "branch": new_branch_name
+        }
+        response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
+        if response.status_code != 200:
+            print(f"Error updating README: {response.text}")
+            return
+        print(f"CODEQL badge added to README in new branch '{new_branch_name}'.")
+
+    else:
+        print(f"CODEQL badge already exists in README, skipping...")
+
+    # Open pull request
+    pr_title = "Add CODEQL workflow status badge"
+    pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
+    data = {
+        "title": pr_title,
+        "body": pr_body,
+        "head": new_branch_name,
+        "base": default_branch
+    }
+    response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/pulls', headers=headers, json=data)
+    if response.status_code != 201:
+        print(f"Error opening pull request: {response.text}")
+        return
+
+    print(f"Pull request opened successfully in {org_name}/{repo_name}.")
+
+if __name__ == "__main__":
+    open_pull_request()
