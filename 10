@@ -20,6 +20,7 @@ def branch_exists(branch_name):
         'Authorization': f'Bearer {access_token}'
     }
     response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs/heads/{branch_name}', headers=headers)
+    print(response.status_code)
     return response.status_code == 200
 
 def update_readme_with_codeql_badge(branch_name):
@@ -31,6 +32,7 @@ def update_readme_with_codeql_badge(branch_name):
     # Update README in the branch
     readme_path = "README.md"
     response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}?ref={branch_name}', headers=headers)
+    print(response.status_code)
     if response.status_code != 200:
         print(f"Error retrieving README from branch '{branch_name}': {response.text}")
         return
@@ -48,6 +50,7 @@ def update_readme_with_codeql_badge(branch_name):
             "branch": branch_name
         }
         response = requests.put(f'https://api.github.com/repos/{org_name}/{repo_name}/contents/{readme_path}', headers=headers, json=data)
+        print(response.status_code)
         if response.status_code != 200:
             print(f"Error updating README in branch '{branch_name}': {response.text}")
             return
@@ -71,6 +74,7 @@ if __name__ == "__main__":
         }
         default_branch = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}', headers=headers).json()['default_branch']
         response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/git/refs', headers=headers, json={"ref": f"refs/heads/{new_branch_name}", "sha": default_branch})
+        print(response.status_code)
         if response.status_code == 201:
             print(f"Branch '{new_branch_name}' created successfully.")
             update_readme_with_codeql_badge(new_branch_name)
