@@ -75,23 +75,38 @@ def update_readme_with_codeql_badge(branch_name):
         print(f"Error retrieving README from branch '{branch_name}': {response.text}")
         return False
 
-def create_pull_request(branch_name, base_branch):
+def open_pull_request(branch_name, base_branch):
     headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': f'Bearer {access_token}'
     }
 
-    data = {
-        "title": f"Add CODEQL workflow status badge",
-        "head": branch_name,
-        "base": base_branch
-    }
+    # Get default branch
+    response = requests.get(f'https://api.github.com/repos/{org_name}/{repo_name}', headers=headers)
+    if response.status_code != 200:
+        print(f"Failed to get repository info: {response.text}")
+        return
 
+    default_branch = response.json().get('default_branch')
+    if not default_branch:
+        print("Failed to retrieve default branch.")
+        return
+
+    # Open pull request
+    pr_title = "Add CODEQL workflow status badge"
+    pr_body = "This pull request adds a CODEQL workflow status badge to the repository."
+    data = {
+        "title": pr_title,
+        "body": pr_body,
+        "head": branch_name,
+        "base": default_branch
+    }
     response = requests.post(f'https://api.github.com/repos/{org_name}/{repo_name}/pulls', headers=headers, json=data)
-    if response.status_code == 201:
-        print(f"Pull request created successfully.")
-    else:
-        print(f"Error creating pull request: {response.text}")
+    if response.status_code != 201:
+        print(f"Error opening pull request: {response.text}")
+        return
+
+    print(f"Pull request opened successfully in {org_name}/{repo_name}.")
 
 def check_codeql_workflow_enabled(repo_name):
     headers = {
@@ -113,7 +128,7 @@ if __name__ == "__main__":
         branch_exists = create_branch(new_branch_name, base_branch)
         if branch_exists or not branch_exists:
             if update_readme_with_codeql_badge(new_branch_name):
-                create_pull_request(new_branch_name, base_branch)
+                open_pull_request(new_branch_name, base_branch)
         else:
             print("Failed to create branch or update README. Pull request will not be created.")
     else:
