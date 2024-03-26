@@ -29,9 +29,11 @@ if __name__ == "__main__":
         writer.writerow(headers)
 
         # Fetch repositories in the organization
-        response = requests.get(f'https://api.github.com/orgs/{org_name}/repos', headers=headers)
+        url = f'https://api.github.com/orgs/{org_name}/repos'
+        headers = {"Authorization": f"token {access_token}"}
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            repositories = response.json()['items']  # Access 'items' attribute
+            repositories = response.json()  # Convert response to JSON
             print(f"Found {len(repositories)} repositories in the organization {org_name}.")
 
             for repo in repositories:
