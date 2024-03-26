@@ -31,10 +31,11 @@ if __name__ == "__main__":
         # Fetch repositories in the organization
         response = requests.get(f'https://api.github.com/orgs/{org_name}/repos', headers=headers)
         if response.status_code == 200:
-            repositories = [repo['name'] for repo in response.json()]
+            repositories = response.json()  # Convert response to JSON
             print(f"Found {len(repositories)} repositories in the organization {org_name}.")
 
-            for repo_name in repositories:
+            for repo in repositories:
+                repo_name = repo['name']
                 codeql_enabled = check_codeql_workflow_enabled(repo_name)
                 writer.writerow([repo_name, codeql_enabled])
 
